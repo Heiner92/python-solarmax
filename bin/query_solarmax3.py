@@ -59,7 +59,7 @@ while True:
 
   count = 0
   for sm in smlist:
-    for (no, ivdata) in sm.inverters().iteritems():
+    for (no, ivdata) in sm.inverters().items():
       try:
         (inverter, current) = sm.query(no, ['PAC', 'KDY', 'KT0', 'IDC', 'UDC', 'IL1', 'UL1', 'FDAT', 'SYS'])
         count += 1

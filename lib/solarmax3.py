@@ -291,7 +291,7 @@ class SolarMax ( object ):
 
   def write_setting(self, inverter, data):
     rawdata = []
-    for key,value in data.iteritems():
+    for key,value in data.items():
       key = key.upper()
       if key not in query_types:
         raise ValueError('unknown type')
@@ -307,7 +307,7 @@ class SolarMax ( object ):
     result = result[1]
     errors = []
     if result['SAL'] > 0:
-      for (code, descr) in alarm_codes.iteritems():
+      for (code, descr) in alarm_codes.items():
         if code & result['SAL']:
           errors.append(descr)
 
