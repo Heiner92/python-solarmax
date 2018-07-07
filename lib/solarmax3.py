@@ -310,9 +310,11 @@ class SolarMax ( object ):
       for (code, descr) in alarm_codes.items():
         if code & result['SAL']:
           errors.append(descr)
+    else:
+      errors=["Keine näheren Informationen verfügbar"]
 
     status = status_codes[result['SYS'][0]]
-    return (status, ', '.join(errors))
+    return ((result['SYS'][0],status), '\n'.join(errors))
 
 
   def use_inverters(self, list_of):
