@@ -72,7 +72,7 @@ while True:
       ivname = ivdata['desc']
       PAC_calc = current['IL1'] * current['UL1']
       PAC_read = current['PAC']
-      percent = int((PAC/ivmax) * 100)
+      percent = int((PAC_read/ivmax) * 100)
       PDC_calc = current['IDC'] * current['UDC']
       (status, errors) = sm.status(no)
       if errors:
@@ -94,10 +94,10 @@ while True:
         percent, 
         ivmax, 
         PDC_calc, 
-        int((float(PAC)/PDC) * 100), 
+        int((float(PAC_calc)/PDC_calc) * 100), 
         current['KDY'],
-         current['KT0'], 
-         current['FDAT'].date()))
+        current['KT0'], 
+        current['FDAT'].date()))
 #      try:
 #        # Könnte gelocked sein
 #        # System ist 2 in diesem Fall. Fix.
