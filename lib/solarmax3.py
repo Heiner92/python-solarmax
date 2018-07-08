@@ -20,6 +20,9 @@
 
 import socket, datetime
 
+import fcntl
+import struct
+
 
 # Konstanten
 inverter_types = {
@@ -79,7 +82,9 @@ def DEBUG(*s):
   out = [datetime.datetime.now().isoformat()+':',] + [str(x) for x in s]
   print(' '.join(out))
 
-
+def get_ip_address(ifname):
+  s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+  return socket.inet_ntoa(fcntl.ioctl(s.fileno(),0x8915,struct.pack('256s', bytes(ifname[:15],'utf-8')))[20:24])
 
 ####################################
 ## Haupt-Klasse
@@ -127,20 +132,21 @@ class SolarMax ( object ):
       # Python 2.5
       self.__socket = socket.socket()
       s = self.__socket
-      s.settimeout(2)
+      s.bind((get_ip_address("eth0"),0))
+      s.settimeout(5)
       s.connect((self.__host, self.__port))
       s.settimeout(10)
       self.__connected = True
       DEBUG('connected.')
-    except:
-      DEBUG('connection to {}:{} failed'.format(self.__host, self.__port))
+    except Exception as e:
+      DEBUG('connection to {}:{} failed with error {}'.format(self.__host, self.__port,str(e)))
       self.__connected = False
       self.__allinverters = False
 
     # Python 2.6
     ## Socket-timeout: 5 secs
     #self.__socket = socket.create_connection((self.__host, self.__port), 5)
-
+    
 
   # Utility-functions
   def hexval(self, i):
@@ -163,6 +169,7 @@ class SolarMax ( object ):
       tmp = ''
       while True:
          tmp = self.__socket.recv(1)
+         tmp=tmp.decode()
          data += tmp
          if len(tmp) < 1 or tmp == '}':
            break
@@ -178,6 +185,7 @@ class SolarMax ( object ):
     if answer[0] != '{' or answer[-1] != '}':
       raise ValueError('malformed answer: {}'.format(answer))
     raw_answer = answer
+    #DEBUG(raw_answer)
     answer = answer[1:-1]
     checksum = answer[-4:]
     content = answer[:-4]
@@ -235,18 +243,21 @@ class SolarMax ( object ):
 
   def __send_query(self, querystring):
     try:
-      DEBUG(self.__host, '=>', querystring)
-      self.__socket.send(querystring)
-    except socket.timeout:
+      #DEBUG(self.__host, '=>', querystring)
+      bytesstring=querystring.encode("ascii")
+      self.__socket.sendall(bytesstring)
+    except socket.timeout as te:
       self.__allinverters = False
-    except socket.error:
+      DEBUG("SOCKET TIEMOUT: {}".format(str(te)))
+    except socket.error as se:
       self.__connected = False
-
-
+      DEBUG("SOCKET ERROR: {}".format(str(se)))
+    except Exception as e:
+      DEBUG("Fehler beim senden der Query: {}".format(str(e)))
 
   def query(self, id, values, qtype=100):
     q = self.__build_query(id, values, qtype)
-    #DEBUG("WR %i: %s" % (id, q))
+    #DEBUG("Query WR %i: %s" % (id, q))
     self.__send_query(q)
     answer = self.__receive()
     if answer:
@@ -268,26 +279,28 @@ class SolarMax ( object ):
 
 
   def normalize_value(self, key, value):
-    if key in [ 'KDY', 'UL1', 'UDC']:
-      return float(int(value, 16)) / 10
-    elif key in [ 'IL1', 'IDC', 'TNF', ]:
-      return float(int(value, 16)) / 100
-    elif key in [ 'PAC', 'PIN', ]:
-      return float(int(value, 16)) / 2
-    elif key in [ 'SAL', ]:
-      return int(value, 16)
-    elif key in [ 'SYS', ]:
-      (x,y) = value.split(',',2)
-      x = int(x, 16)
-      y = int(y, 16)
-      return (x,y)
-    elif key in [ 'SDAT', 'FDAT' ]:
-      (date, time) = value.split(',',2)
-      time = int(time, 16)
-      return datetime.datetime(int(date[:3], 16), int(date[3:5], 16), int(date[5:], 16), time/3600, (time % 3600) / 60, time % (3600*60))
-    else:
-      return int(value, 16)
-
+    try:
+        if key in [ 'KDY', 'UL1', 'UDC']:
+          return float(int(value, 16)) / 10
+        elif key in [ 'IL1', 'IDC', 'TNF', ]:
+          return float(int(value, 16)) / 100
+        elif key in [ 'PAC', 'PIN', ]:
+          return float(int(value, 16)) / 2
+        elif key in [ 'SAL', ]:
+          return int(value, 16)
+        elif key in [ 'SYS', ]:
+          (x,y) = value.split(',',2)
+          x = int(x, 16)
+          y = int(y, 16)
+          return (x,y)
+        elif key in [ 'SDAT', 'FDAT' ]:
+          (date, time) = value.split(',',2)
+          time = int(time, 16)
+          return datetime.datetime(int(date[:3], 16), int(date[3:5], 16), int(date[5:], 16), int(time/3600), int((time % 3600) / 60)), int(time % (3600*60))
+        else:
+          return int(value, 16)
+    except Exception as e:
+        DEBUG("Fehler beim normalisieren des Werts {} ({}): {}".format(key,value,str(e)))
 
   def write_setting(self, inverter, data):
     rawdata = []
@@ -336,8 +349,8 @@ class SolarMax ( object ):
           self.__inverters[inverter]['installed'] = data['PIN']
         else:
           DEBUG('Unknown inverter type: {} (ID #{})'.format(data['TYP'], data['ADR']))
-      except:
-        DEBUG('Inverter #{} not found'.format(inverter))
+      except Exception as e:
+        DEBUG('Inverter #{} not found - error: {}'.format(inverter,str(e)))
         self.__allinverters = False
     self.__detection_running = False
     if len(self.__inverters) == len(self.__inverter_list):
