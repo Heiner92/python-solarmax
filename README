@@ -1,5 +1,9 @@
 This document is in german language. Feel free to translate.
 
+Das hier ist ein Fork von [https://github.com/bwurst/python-solarmax](https://github.com/bwurst/python-solarmax) zur Erweiterung für Python 3
+
+Folgend das ursprüngliche README:
+_______________________________________________________________________________
 
 Unter dem Markennamen "SolarMax" vertreibt die schweizer Firma 
 Sputnik Engineering AG Fotovoltaik-Wechselrichter.
